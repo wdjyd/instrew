@@ -21,6 +21,8 @@
 #define EM_CURRENT EM_X86_64
 #elif defined(__aarch64__)
 #define EM_CURRENT EM_AARCH64
+#elif defined(__riscv) && (__riscv_xlen == 64)
+#define EM_CURRENT EM_RISCV
 #endif
 #define elf_check_arch(x) ((x)->e_machine == EM_CURRENT)
 
@@ -86,6 +88,8 @@ static const struct PltEntry plt_entries[] = {
 #define PLT_FUNC_SIZE 8
 #elif defined(__aarch64__)
 #define PLT_FUNC_SIZE 8
+#elif defined(__riscv) && (__riscv_xlen == 64)
+#define PLT_FUNC_SIZE 8
 #else
 #error "currently unsupported architecture"
 #endif
@@ -117,6 +121,10 @@ plt_create(const struct DispatcherInfo* disp_info, void** out_plt) {
 #elif defined(__aarch64__)
         *((uint32_t*) code_ptr+0) = 0x58000011 | (offset << 3); // ldr x17, [pc+off]
         *((uint32_t*) code_ptr+1) = 0xd61f0220; // br x17
+#elif defined(__riscv) && (__riscv_xlen == 64)
+        *((uint32_t*)code_ptr + 0) = 0x00000397 | ((offset >> 12) << 12); // auipc t2, offset_hi
+        *((uint32_t*)code_ptr + 1) = 0x00003383 | ((offset & 0xfff) << 20); // ld t2, offset_lo(t2)
+        *((uint32_t*)code_ptr + 2) = 0x00038067; // jr t2
 #else
 #error
 #endif // defined(__x86_64__)
@@ -149,19 +157,26 @@ rtld_patch_create_stub(Rtld* rtld, const struct RtldPatchData* patch_data,
     unsigned pdr = rtld->disp_info->patch_data_reg;
 
 #if defined(__x86_64__)
-    uint8_t tmpl[] = {
-        0x48 + 4*(pdr>=8), 0x8d, 5+((pdr&7)<<3), 9, 0, 0, 0, // lea rXX, [rip+9]
-        0xe9, // jmp ...
-    };
-    memcpy(stcode, tmpl, sizeof tmpl);
-    *(uint32_t*) (stcode + 8) = jmptgtdiff - 12;
-    *(uint32_t*) (stcode + 12) = 0x0b0f0b0f; // ud2
+    // uint8_t tmpl[] = {
+    //     0x48 + 4*(pdr>=8), 0x8d, 5+((pdr&7)<<3), 9, 0, 0, 0, // lea rXX, [rip+9]
+    //     0xe9, // jmp ...
+    // };
+    // memcpy(stcode, tmpl, sizeof tmpl);
+    // *(uint32_t*) (stcode + 8) = jmptgtdiff - 12;
+    // *(uint32_t*) (stcode + 12) = 0x0b0f0b0f; // ud2
 #elif defined(__aarch64__)
     *(uint32_t*) (stcode) = 0x10000080 + pdr; // ADR xXX, pc + 0x10
     *(uint32_t*) (stcode + 4) = 0x14000000; // B ...
     if (!rtld_elf_signed_range(jmptgtdiff - 4, 28, "R_AARCH64_JUMP26"))
         return -EINVAL;
     rtld_blend(stcode + 4, 0x03ffffff, (jmptgtdiff - 4) >> 2);
+
+#elif defined(__riscv)
+    // *(uint32_t*) (stcode) = 0x10000080 + pdr; // ADR xXX, pc + 0x10
+    // *(uint32_t*) (stcode + 4) = 0x14000000; // B ...
+    // if (!rtld_elf_signed_range(jmptgtdiff - 4, 28, "R_AARCH64_JUMP26"))
+    //     return -EINVAL;
+    // rtld_blend(stcode + 4, 0x03ffffff, (jmptgtdiff - 4) >> 2);
 #else
 #error "missing patch stub"
 #endif

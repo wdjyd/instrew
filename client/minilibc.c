@@ -37,38 +37,38 @@ _start:
     .att_syntax;
 );
 
-ASM_BLOCK(
-    .intel_syntax noprefix;
-    .global __clone;
-    .type   __clone, @function;
-__clone:
-    and rsi, -16; // store arg on child stack
-    sub rsi, 8;
-    mov [rsi], rcx;
-    mov r11, rdi; // temporarily store func in r11
+// ASM_BLOCK(
+//     .intel_syntax noprefix;
+//     .global __clone;
+//     .type   __clone, @function;
+// __clone:
+//     and rsi, -16; // store arg on child stack
+//     sub rsi, 8;
+//     mov [rsi], rcx;
+//     mov r11, rdi; // temporarily store func in r11
 
-    mov rdi, rdx; // flags
-    // rsi is stack
-    mov rdx, r8; // ptid
-    mov r10, [rsp + 8]; // newtls
-    mov r8, r9; // ctid
+//     mov rdi, rdx; // flags
+//     // rsi is stack
+//     mov rdx, r8; // ptid
+//     mov r10, [rsp + 8]; // newtls
+//     mov r8, r9; // ctid
 
-    mov r9, r11; // r11 is clobbered by the syscall instruction
+//     mov r9, r11; // r11 is clobbered by the syscall instruction
 
-    mov eax, 56; // __NR_clone
-    syscall;
-    test eax, eax;
-    jnz 1f;
+//     mov eax, 56; // __NR_clone
+//     syscall;
+//     test eax, eax;
+//     jnz 1f;
 
-    pop rdi; // in child
-    call r9;
-    mov edi, eax;
-    mov eax, 60; // __NR_exit
-    syscall;
+//     pop rdi; // in child
+//     call r9;
+//     mov edi, eax;
+//     mov eax, 60; // __NR_exit
+//     syscall;
 
- 1: ret;
-    .att_syntax;
-);
+//  1: ret;
+//     .att_syntax;
+// );
 
 ASM_BLOCK(
     .intel_syntax noprefix;
@@ -282,8 +282,141 @@ get_thread_area(void) {
     return tp;
 }
 
+#elif defined(__riscv)
+#define R_RELATIVE R_RISCV_RELATIVE
+
+ASM_BLOCK(
+    .weak _DYNAMIC;
+    .hidden _DYNAMIC;
+    .global _start;
+_start:
+    mov a0, sp;
+    la a1, _DYNAMIC;
+    andi sp, sp, -16
+    tail __start_main;
+);
+
+// ASM_BLOCK(
+//     .global __clone;
+//     .type   __clone, @function;
+// __clone:
+//     and x1, x1, -16; // store arg on child stack
+//     stp x0, x3, [x1, -16]!;
+
+//     uxtw x0, w2;
+//     mov x2, x4;
+//     mov x3, x5;
+//     mov x4, x6;
+//     mov x8, 220; // __NR_clone
+//     svc 0;
+//     cbnz x0, 1f;
+
+//     ldp x1, x0, [sp], 16;
+//     blr x1;
+//     mov x8, 93; // __NR_exit
+//     svc 0;
+
+//  1: ret;
+// );
+
+ASM_BLOCK(
+__restore:
+    li a7, 139;
+    ecall;
+);
+
+static size_t syscall0(int syscall_number) {
+    register size_t a7 __asm__("a7") = syscall_number;
+    register size_t a0 __asm__("a0");
+    __asm__ volatile(
+        "ecall"
+        : "=r"(a0)
+        : "r"(a7)
+        : "memory");
+    return a0;
+}
+
+static size_t syscall1(int syscall_number, size_t a1) {
+    register size_t a7 __asm__("a7") = syscall_number;
+    register size_t a0 __asm__("a0") = a1;
+    __asm__ volatile(
+        "ecall"
+        : "+r"(a0)
+        : "r"(a7)
+        : "memory");
+    return a0;
+}
+
+static size_t syscall2(int syscall_number, size_t a1, size_t a2) {
+    register size_t a7 __asm__("a7") = syscall_number;
+    register size_t a0 __asm__("a0") = a1;
+    register size_t a1_reg __asm__("a1") = a2;
+    __asm__ volatile(
+        "ecall"
+        : "+r"(a0)
+        : "r"(a7), "r"(a1_reg)
+        : "memory");
+    return a0;
+}
+
+static size_t syscall3(int syscall_number, size_t a1, size_t a2, size_t a3) {
+    register size_t a7 __asm__("a7") = syscall_number;
+    register size_t a0 __asm__("a0") = a1;
+    register size_t a1_reg __asm__("a1") = a2;
+    register size_t a2_reg __asm__("a2") = a3;
+    __asm__ volatile(
+        "ecall"
+        : "+r"(a0)
+        : "r"(a7), "r"(a1_reg), "r"(a2_reg)
+        : "memory");
+    return a0;
+}
+
+static size_t syscall4(int syscall_number, size_t a1, size_t a2, size_t a3, size_t a4) {
+    register size_t a7 __asm__("a7") = syscall_number;
+    register size_t a0 __asm__("a0") = a1;
+    register size_t a1_reg __asm__("a1") = a2;
+    register size_t a2_reg __asm__("a2") = a3;
+    register size_t a3_reg __asm__("a3") = a4;
+    __asm__ volatile(
+        "ecall"
+        : "+r"(a0)
+        : "r"(a7), "r"(a1_reg), "r"(a2_reg), "r"(a3_reg)
+        : "memory");
+    return a0;
+}
+
+static size_t syscall6(int syscall_number, size_t a1, size_t a2, size_t a3,
+                       size_t a4, size_t a5, size_t a6) {
+    register size_t a7 __asm__("a7") = syscall_number;
+    register size_t a0 __asm__("a0") = a1;
+    register size_t a1_reg __asm__("a1") = a2;
+    register size_t a2_reg __asm__("a2") = a3;
+    register size_t a3_reg __asm__("a3") = a4;
+    register size_t a4_reg __asm__("a4") = a5;
+    register size_t a5_reg __asm__("a5") = a6;
+    __asm__ volatile(
+        "ecall"
+        : "+r"(a0)
+        : "r"(a7), "r"(a1_reg), "r"(a2_reg), "r"(a3_reg), "r"(a4_reg), "r"(a5_reg)
+        : "memory");
+    return a0;
+}
+
+int set_thread_area(void* tp) {
+    __asm__ volatile("mv tp, %0" :: "r"(tp) : "memory");
+    return 0;
+}
+
+void* get_thread_area(void) {
+    void* tp;
+    __asm__ volatile("mv %0, tp" : "=r"(tp));
+    return tp;
+}
+
 #else
 #error
+
 #endif
 
 char** environ;

@@ -112,6 +112,8 @@ mem_write_code(void* dst, const void* src, size_t size) {
         __asm__ volatile("dsb ish");
     }
     __asm__ volatile("isb");
+#elif defined(__riscv)
+    __asm__ volatile("fence.i" ::: "memory");
 #else
 #error "Implement ICache flush for unknown target"
 #endif

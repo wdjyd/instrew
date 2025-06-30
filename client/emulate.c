@@ -244,7 +244,7 @@ handle_clone(struct State* state, struct clone_args* uargs, size_t usize) {
     // clone(flags, stack, parent_tid, child_tid, tls)
     ssize_t res = syscall(__NR_clone, flags, 0, args.parent_tid, args.child_tid,
                           args.tls, 0);
-#elif defined(__aarch64__)
+#elif defined(__aarch64__) || defined(__riscv)
     // clone(flags, stack, parent_tid, tls, child_tid)
     ssize_t res = syscall(__NR_clone, flags, 0, args.parent_tid, args.tls,
                           args.child_tid, 0);
