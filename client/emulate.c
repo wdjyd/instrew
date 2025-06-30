@@ -473,9 +473,11 @@ emulate_syscall(uint64_t* cpu_regs) {
     case 22: // pipe
         res = syscall(__NR_pipe2, arg0, 0, 0, 0, 0, 0);
         break;
+#ifdef __x86_64__
     case 82: // rename
         res = syscall(__NR_renameat, AT_FDCWD, arg0, AT_FDCWD, arg1, 0, 0);
         break;
+#endif
     case 83: // mkdir
         res = syscall(__NR_mkdirat, AT_FDCWD, arg0, arg1, 0, 0, 0);
         break;
