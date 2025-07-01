@@ -25,10 +25,11 @@ add_project_arguments(['-Wmissing-field-initializers',
                        '-Wundef',
                        '-Wno-cast-align', # we frequently do casts
                        '-Werror=incompatible-pointer-types',
-                       '-Werror=implicit-function-declaration'],
+                       '-Werror=implicit-function-declaration',
+                       '-fPIC'],
                       language: 'c')
 
-add_global_arguments(['-fno-rtti', '-fno-exceptions'], language: 'cpp')
+add_global_arguments(['-fno-rtti', '-fno-exceptions', '-fPIC'], language: 'cpp')
 
 llvm_version = ['>=16', '<19']
 # First, attempt to use the shared library.

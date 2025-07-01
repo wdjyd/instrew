@@ -6,7 +6,9 @@
 #if defined(__x86_64__)
 #include <asm/prctl.h>
 #endif
-
+#ifndef SA_RESTORER
+#define SA_RESTORER 0X04000000
+#endif
 
 extern int main(int argc, char** argv);
 void __start_main(const size_t* initial_stack, const size_t* dynv);
@@ -290,9 +292,9 @@ ASM_BLOCK(
     .hidden _DYNAMIC;
     .global _start;
 _start:
-    mov a0, sp;
+    mv a0, sp;
     la a1, _DYNAMIC;
-    andi sp, sp, -16
+    andi sp, sp, -16;
     tail __start_main;
 );
 
@@ -872,8 +874,8 @@ sigaction(int num, const struct sigaction* restrict act,
     struct sigaction kact;
     if (act) {
         kact = *act;
-        kact.sa_flags |= SA_RESTORER;
-        kact.sa_restorer = __restore;
+        // kact.sa_flags |= SA_RESTORER;
+        // kact.sa_restorer = __restore;
         act = &kact;
     }
     return syscall4(__NR_rt_sigaction, num, (uintptr_t) act, (uintptr_t) oact,
